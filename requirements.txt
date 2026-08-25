@@ -1,0 +1,13 @@
+numpy
+pandas
+scikit-learn
+torch
+xgboost
+statsmodels
+matplotlib
+seaborn
+flask
+gunicorn
+pyyaml
+ucimlrepo
+pytest
