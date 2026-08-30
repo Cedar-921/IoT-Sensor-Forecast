@@ -1,0 +1,42 @@
+# ─────────────── 版本控制与缓存 ───────────────
+.git/
+.gitignore
+.gitattributes
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# ─────────────── 模型与数据（运行时挂载） ───────────────
+*.pt
+*.pkl
+models/*.pt
+models/*.pkl
+data/raw/*.csv
+data/processed/*.csv
+reports/figures/*.png
+reports/*.csv
+
+# ─────────────── 开发文档与测试 ───────────────
+notebooks/
+tests/
+docs/
+.env
+.env.example
+.env.local
+CLAUDE.md
+README.md
+*.md
+
+# ─────────────── IDE / 编辑器 ───────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

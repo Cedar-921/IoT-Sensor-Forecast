@@ -1,13 +1,28 @@
-numpy
-pandas
-scikit-learn
-torch
-xgboost
-statsmodels
-matplotlib
-seaborn
-flask
-gunicorn
-pyyaml
-ucimlrepo
-pytest
+# IoT-Sensor-Forecast 项目依赖
+# 版本基于 2026-08 实际安装的 .venv 快照，保证可重现
+numpy>=2.5,<3
+scipy>=1.18,<2
+pandas>=3.0,<4
+scikit-learn>=1.9,<2
+statsmodels>=0.14,<0.15
+xgboost>=3.4,<4
+joblib>=1.5,<2
+matplotlib>=3.11,<4
+seaborn>=0.13,<1
+ucimlrepo>=0.0.7,<1
+pytest>=9.1,<10
+
+# torch 云端专用：本地不装（无 GPU），云端按 CUDA 版本装
+# 例 CUDA 11.8: pip install torch --index-url https://download.pytorch.org/whl/cu118
+# 例 CUDA 12.1: pip install torch --index-url https://download.pytorch.org/whl/cu121
+# 见 CLAUDE.md「训练环境（云端 GPU）」章节
+# torch>=2.0,<3
+
+# Day 15-17 已启用（api/flask_app.py 占位骨架需要）
+flask>=3.0,<4
+gunicorn>=21,<24
+flask-cors>=4.0,<7
+pyyaml>=6,<7
+
+# Day 17 已启用（api/schemas.py 输入校验）
+pydantic>=2,<3

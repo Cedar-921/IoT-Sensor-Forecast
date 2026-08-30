@@ -7,8 +7,16 @@ __pycache__/
 .venv/
 .ipynb_checkpoints/
 .env
+# 模型权重不入库（大文件 + 含训练状态）
 *.pt
 *.pkl
 models/*.pt
 models/*.pkl
+# reports/figures/*.png 忽略（图大且可通过 notebook 重新生成）
 reports/figures/*.png
+# 注意：reports/results.csv 不忽略（4 模型指标摘要，面试展示需要）
+CLAUDE.md
+# 用户级内存 + 项目级内存不入库
+.claude/
+memory/
+reports/.results1.csv.bak

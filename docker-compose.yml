@@ -1,0 +1,41 @@
+# ─────────────────────────────────────────────────────────────────
+# IoT-Sensor-Forecast · 单服务编排
+# 仅编排 Flask API，不引入 nginx / redis 等额外组件
+# volumes 挂载本地 models/ 与 reports/，避免重建镜像
+# ─────────────────────────────────────────────────────────────────
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: iot-sensor-forecast:latest
+    container_name: iot-api
+    ports:
+      - "5000:5000"
+    environment:
+      - IOT_PROJECT_ROOT=/app
+      - LOG_LEVEL=INFO
+      - GUNICORN_CMD_ARGS=--access-logfile - --error-logfile -
+    volumes:
+      # 挂载本地模型与报告，复用宿主机文件，无需重建镜像
+      - ./models:/app/models:ro
+      - ./reports:/app/reports:ro
+      # 日志持久化（可选，方便调试）
+      - iot-logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    # 资源限制（演示场景，防止容器占满主机）
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+
+volumes:
+  iot-logs:
+    driver: local

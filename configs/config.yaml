@@ -1,0 +1,45 @@
+# -*- coding: utf-8 -*-
+# IoT-Sensor-Forecast · 全局配置文件
+# 当前为 Day 15+ 预留的占位文件，Day 9 阶段超参硬编码在 src/train.py 中。
+
+project:
+  name: IoT-Sensor-Forecast
+  version: 0.1.0
+  data_dir: data
+  models_dir: models
+  reports_dir: reports
+
+# 数据切分比例（与 src/train.py:time_split 默认值对齐）
+data_split:
+  train: 0.70
+  val: 0.15
+  test: 0.15
+
+# ARIMA baseline 超参（当前硬编码在 src/models/baselines.py）
+arima:
+  order: [2, 1, 2]
+
+# XGBoost 超参（当前硬编码在 src/models/xgboost_model.py:DEFAULT_PARAMS）
+xgboost:
+  n_estimators: 500
+  max_depth: 6
+  learning_rate: 0.05
+  subsample: 0.8
+  colsample_bytree: 0.8
+  tree_method: hist
+  random_state: 42
+
+# LSTM / Transformer 占位（Day 10-14 启用）
+lstm: {}
+transformer: {}
+
+# Flask API 占位（Day 15-17 启用）
+api:
+  host: 0.0.0.0
+  port: 5000
+  cors_origins: ["http://localhost:8080"]
+
+# Dashboard 占位（Day 18-19 启用）
+dashboard:
+  chart_lib: echarts
+  refresh_interval_sec: 60
