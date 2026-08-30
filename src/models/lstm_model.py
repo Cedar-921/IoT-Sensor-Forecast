@@ -274,6 +274,9 @@ class LSTMModel:
 
         # 5. 构造 PyTorch 模型
         torch.manual_seed(self.params["random_state"])
+        # cuDNN 非确定性可能导致同样 seed 不同结果；显式启用确定性算法（M-4 修复）
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
         self.model_ = _LSTMNet(
             n_features=X_scaled.shape[1],
             hidden_dim=self.params["hidden_dim"],

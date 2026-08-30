@@ -160,8 +160,6 @@ def run_pipeline() -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    )
+    from src.logging_config import setup_logging
+    setup_logging()
     run_pipeline()

@@ -132,5 +132,4 @@ def test_trainers_registry_dispatch_calls_correct_function(monkeypatch):
         assert called["arima"] == 1
         assert called["xgboost"] == 1
     finally:
-        train.TRAINERS.clear()
-        train.TRAINERS.update(original)
+        train.TRAINERS = original

@@ -350,10 +350,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    )
+    from src.logging_config import setup_logging
+    setup_logging()
     logger.info("项目根目录: %s", PROJECT_ROOT)
 
     trainer = TRAINERS[args.model]

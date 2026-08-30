@@ -258,6 +258,8 @@ def _predict_with_history(
     其他特征用 cleaned.csv 暖机数据填占位（演示简化）。
 
     返回 n_steps 个预测值（瓦）。
+
+    内部用 _PREDICTORS 注册表按模型名分派（消除 if/elif 链）。
     """
     feat = _build_features_for_window(history, model_name, n_steps)
 
@@ -274,33 +276,41 @@ def _predict_with_history(
         )
     feat_aligned = feat[train_feat_names]
 
-    if model_name == "xgboost":
-        # XGBoost：直接对每行做单点预测
-        preds = model.predict(feat_aligned)
-        return [float(max(p, 0.0)) for p in preds[:n_steps]]
+    predictor = _PREDICTORS.get(model_name)
+    if predictor is None:
+        raise NotImplementedError(f"未知模型：{model_name}")
+    return predictor(model, feat_aligned, n_steps)
 
-    if model_name in ("lstm", "transformer"):
-        # LSTM/Transformer：内部滑窗，需要 len(feat) >= window_size
-        window_size = model.params.get("window_size", 24)
-        # predict 需要 len(X) >= window_size+1，否则返回空
-        # 暖机数据已含历史，构造的特征末尾 n_steps 行的 lag288/rolling144 已就绪
-        # 但单 n_steps 行可能不足；扩展为 max(n_steps, window_size+1) 行构造
-        if n_steps < window_size + 1:
-            # 重新构造更多行
-            feat = _build_features_for_window(
-                history, model_name, max(n_steps + window_size, window_size + 1),
-            )
-            feat_aligned = feat[train_feat_names]
 
-        preds_all = model.predict(feat_aligned)  # 长度 = n_input - window_size
-        if len(preds_all) == 0:
-            raise ValueError(
-                f"{model_name} 预测结果为空：输入 {len(feat_aligned)} 行，"
-                f"window_size={window_size}。请增加 history 长度"
-            )
-        return [float(max(p, 0.0)) for p in preds_all[-n_steps:]]
+def _predict_xgboost(model: Any, feat_aligned: pd.DataFrame, n_steps: int) -> list[float]:
+    """XGBoost：对每行做单点预测。"""
+    preds = model.predict(feat_aligned)
+    return [float(max(p, 0.0)) for p in preds[:n_steps]]
 
-    raise NotImplementedError(f"未知模型：{model_name}")
+
+def _predict_seq_model(model: Any, feat_aligned: pd.DataFrame, n_steps: int) -> list[float]:
+    """LSTM / Transformer：内部滑窗预测。"""
+    window_size = model.params.get("window_size", 24)
+    # predict 需要 len(X) >= window_size+1；不足时直接报错（客户端应传足够历史）
+    if len(feat_aligned) < window_size + 1:
+        raise ValueError(
+            f"序列模型预测窗口不足：输入 {len(feat_aligned)} 行，"
+            f"window_size={window_size}。请增加 history 长度"
+        )
+    preds_all = model.predict(feat_aligned)  # 长度 = n_input - window_size
+    if len(preds_all) == 0:
+        raise ValueError(
+            f"预测结果为空：输入 {len(feat_aligned)} 行，window_size={window_size}"
+        )
+    return [float(max(p, 0.0)) for p in preds_all[-n_steps:]]
+
+
+# 模型 → 预测策略注册表（消除 if/elif 链）
+_PREDICTORS: dict[str, Any] = {
+    "xgboost": _predict_xgboost,
+    "lstm": _predict_seq_model,
+    "transformer": _predict_seq_model,
+}
 
 
 # ─────────────── 路由 ───────────────
@@ -427,10 +437,8 @@ def predict():
 
 # ─────────────── 入口 ───────────────
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=os.getenv("LOG_LEVEL", "INFO").upper(),
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    )
+    from src.logging_config import setup_logging
+    setup_logging()
     # 仅本地调试用（生产请用 gunicorn，见模块 docstring）
     port = int(os.getenv("PORT", "5000"))
     debug = os.getenv("FLASK_DEBUG", "0") == "1"

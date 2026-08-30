@@ -33,14 +33,16 @@
 |---|---|---|---|---|---|
 | ARIMA | 44.19 | 94.25 | 41.41% | ~2 min | <50ms |
 | XGBoost | 28.92 | 65.35 | 26.26% | ~5 min | ~10ms |
-| **LSTM** | 31.63 | 79.18 | 25.78% | ~15 min | ~2s |
-| **Transformer** | **31.41** | **77.32** | 27.52% | ~20 min | ~3s |
+| **LSTM** | 31.63 | 79.18 | 25.78% | 见 logs/lstm_train.log | ~2s |
+| **Transformer** | **31.41** | **77.32** | 27.52% | 见 logs/transformer_train.log | ~3s |
 
 **关键观察**：
 
 - XGBoost 在 MAE/RMSE 上最优（梯度提升对结构化特征 + 周期编码天然友好）
 - Transformer 略胜 LSTM（注意力 > 循环），MAPE 稍逊（高分位误差敏感）
 - ARIMA 基线显著落后（单变量 + 线性，无法捕捉多变量非线性）
+
+> 训练时长因 CPU/GPU 而异，建议以 `cat logs/{model}_train.log` 实测为准。
 
 ---
 
@@ -266,6 +268,17 @@ pytest tests/ --cov=src --cov-report=term-missing
 3. **date 字符串缺空格**（`2016-01-1117:00:00`）→ 正则修复
 4. **Appliances 严重右偏**（skew=3.386）→ `log1p` 变换
 5. **lights 是关键开关**（77.3% 为 0，但相关 top1）→ 保留原值
+
+### Dashboard 演示截图
+
+![Dashboard](reports/figures/dashboard_demo.png)
+
+_截图位（`reports/figures/dashboard_demo.png`）—— 启动 API + Dashboard 后手动截图。_
+
+- 启动 API：`python api/flask_app.py`
+- 启动 Dashboard：`python -m http.server 8080 --directory dashboard`
+- 浏览器：`http://localhost:8080`
+- 截图保存到 `reports/figures/dashboard_demo.png`
 
 ---
 
