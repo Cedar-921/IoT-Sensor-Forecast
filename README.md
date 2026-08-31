@@ -269,16 +269,39 @@ pytest tests/ --cov=src --cov-report=term-missing
 4. **Appliances 严重右偏**（skew=3.386）→ `log1p` 变换
 5. **lights 是关键开关**（77.3% 为 0，但相关 top1）→ 保留原值
 
-### Dashboard 演示截图
+### 快速演示（4 模型 /predict）
 
-![Dashboard](reports/figures/dashboard_demo.png)
+启动 Flask API 后，**一行命令演示 4 个模型**：
 
-_截图位（`reports/figures/dashboard_demo.png`）—— 启动 API + Dashboard 后手动截图。_
+```bash
+bash scripts/demo_predict.sh
 
-- 启动 API：`python api/flask_app.py`
-- 启动 Dashboard：`python -m http.server 8080 --directory dashboard`
-- 浏览器：`http://localhost:8080`
-- 截图保存到 `reports/figures/dashboard_demo.png`
+# 自定义 API 地址（云服务器场景）
+API_BASE=http://your-server:5000 bash scripts/demo_predict.sh
+
+# 预测步数（默认 12 = 2h）
+N_STEPS=24 bash scripts/demo_predict.sh
+```
+
+脚本输出：每个模型的 12 个预测值 + 推理耗时。
+
+### Dashboard 演示
+
+启动 API + Dashboard：
+
+```bash
+# 终端 1：API
+python api/flask_app.py
+
+# 终端 2：Dashboard
+python -m http.server 8080 --directory dashboard
+
+# 浏览器
+open http://localhost:8080  # macOS / Git Bash
+# Windows 直接访问 http://localhost:8080
+```
+
+Dashboard 含 4 个模型指标卡片、对比柱状图、调用 /predict 渲染预测时序图。
 
 ---
 

@@ -19,4 +19,7 @@ CLAUDE.md
 # 用户级内存 + 项目级内存不入库
 .claude/
 memory/
+# 临时备份 / 已废弃文件（不入库；如需恢复可用 git show）
 reports/.results1.csv.bak
+reports/eda_01.html
+scripts/demo_predict.bat
