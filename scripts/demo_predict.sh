@@ -2,8 +2,9 @@
 # IoT-Sensor-Forecast · 一键演示 4 模型 /predict
 #
 # 前置：
-#   1. Flask API 已启动：python api/flask_app.py 或 gunicorn api.flask_app:app
+#   1. Flask API 已启动：gunicorn api.flask_app:app -b 0.0.0.0:5000
 #   2. 4 个模型文件已在 models/ 下：arima_v1.pkl / xgboost_v1.pkl / lstm_v1.pt / transformer_v1.pt
+#   3. data/processed/cleaned.csv 存在（/history 端点依赖）
 #
 # 用法：
 #   bash scripts/demo_predict.sh                    # 默认 http://localhost:5000
@@ -35,34 +36,40 @@ echo "[2/5] /metrics"
 curl -s -f "$API_BASE/metrics" | python -m json.tool
 echo
 
-# 3. 生成 290 个 Appliances 历史点（lag288 暖机需要）
-#    真实场景应从 cleaned.csv 取最近 290 行；演示用 sin 波模拟
-echo "[3/5] 构造 history (290 个 Appliances 假数据)"
-HISTORY=$(PYTHONIOENCODING=utf-8 python -c "
-import math, json
-history = [60 + 30 * math.sin(i / 12) + 20 * math.sin(i / 144) for i in range(290)]
-print(json.dumps(history))
-")
-echo "  history 长度: $(echo "$HISTORY" | python -c 'import sys, json; print(len(json.load(sys.stdin)))')"
+# 3. /history 端点拉真实历史（避免把 290 个数塞 shell 变量截断）
+echo "[3/5] /history?n=290（拉真实历史）"
+HISTORY_FILE=$(mktemp)
+curl -s -f "$API_BASE/history?n=290" | python -c "import sys, json; d=json.load(sys.stdin); json.dump(d['appliances'], open('$HISTORY_FILE','w'))"
+HISTORY_LEN=$(python -c "import json; print(len(json.load(open('$HISTORY_FILE'))))")
+echo "  history 长度: $HISTORY_LEN"
 echo
 
-# 4. 4 模型 /predict
+# 4. 4 模型 /predict（用临时文件写 body，绕过 shell 参数长度限制）
 for MODEL in arima xgboost lstm transformer; do
     echo "[4/5] /predict  model=$MODEL"
     if [ "$MODEL" = "arima" ]; then
-        # ARIMA 不需要 history
-        RESP=$(curl -s -X POST "$API_BASE/predict" \
-            -H "Content-Type: application/json" \
-            -d "{\"model\":\"$MODEL\",\"n_steps\":$N_STEPS}")
+        BODY=$(printf '{"model":"%s","n_steps":%d}' "$MODEL" "$N_STEPS")
     else
-        # XGBoost/LSTM/Transformer 需要 290+ 历史点（演示简化，ARIMA 用模型自带历史）
-        RESP=$(curl -s -X POST "$API_BASE/predict" \
-            -H "Content-Type: application/json" \
-            -d "{\"model\":\"$MODEL\",\"n_steps\":$N_STEPS,\"history\":$HISTORY}")
+        # 从 history 文件读出数组，嵌入 JSON body
+        BODY=$(python -c "
+import json
+history = json.load(open('$HISTORY_FILE'))
+body = {'model': '$MODEL', 'n_steps': $N_STEPS, 'history': history}
+print(json.dumps(body))
+")
     fi
-    echo "$RESP" | PYTHONIOENCODING=utf-8 python -c "
-import sys, json
-d = json.load(sys.stdin)
+    BODY_FILE=$(mktemp)
+    printf '%s' "$BODY" > "$BODY_FILE"
+
+    RESP_FILE=$(mktemp)
+    curl -s -X POST "$API_BASE/predict" \
+        -H "Content-Type: application/json" \
+        --data-binary "@$BODY_FILE" > "$RESP_FILE"
+    rm -f "$BODY_FILE"
+
+    python -c "
+import json
+d = json.load(open('$RESP_FILE'))
 model_name = d.get('model', '$MODEL')
 if d.get('status') == 'ok':
     preds = d['predictions']
@@ -75,8 +82,11 @@ else:
     err = d.get('error','unknown')
     print(f'  [ERR] {model_name}: {err} -- {detail}')
 "
+    rm -f "$RESP_FILE"
     echo
 done
+
+rm -f "$HISTORY_FILE"
 
 echo "[5/5] 完成"
 echo "============================================================"
