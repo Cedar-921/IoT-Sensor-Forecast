@@ -189,7 +189,8 @@ def _build_features_for_window(
     2. 用 history 末尾 n_steps 个值替换暖机最后 n_steps 行的 Appliances
        — 客户端 history 是"过去 N 个 Appliances"，最后一个值是"现在"
     3. 调用 transform_features 构造 40+ 衍生特征
-    4. 返回最后 n_steps 行（预测窗口）
+    4. 序列模型需要 window_size 行历史做1 次预测，因此返回 window_size + n_steps 行
+       （树模型只关心最后 n_steps，序列模型需要前面的 window_size 行作为输入窗口）
 
     参数
     ----------
@@ -203,7 +204,8 @@ def _build_features_for_window(
     返回
     ------
     pd.DataFrame
-        含全部 40+ 衍生特征的 DataFrame，行数 = n_steps。
+        含全部 40+ 衍生特征的 DataFrame，行数 = window_size + n_steps（序列模型）
+        或 n_steps（树模型，由调用方自行截取）。
     """
     history_len = len(history)
     if history_len < n_steps:
@@ -212,8 +214,12 @@ def _build_features_for_window(
             f"至少需要与预测步数等长的历史点"
         )
 
-    # 1. 暖机基线：cleaned.csv 末尾 (WARMUP_ROWS + n_steps) 行
-    full_warmup = _load_warmup_n_rows(WARMUP_ROWS + n_steps)
+    # 序列模型需要的额外行数（默认值 24，留作安全缓冲）
+    seq_window = 24 if model_name in ("lstm", "transformer") else 0
+    total_rows = WARMUP_ROWS + n_steps + seq_window
+
+    # 1. 暖机基线：cleaned.csv 末尾 (WARMUP_ROWS + n_steps + seq_window) 行
+    full_warmup = _load_warmup_n_rows(total_rows)
     warmup_modified = full_warmup.copy()
 
     # 2. 用 history 末尾 n_steps 个值替换暖机最后 n_steps 行的 Appliances
@@ -227,13 +233,14 @@ def _build_features_for_window(
     # 3. 构造特征
     feat = transform_features(warmup_modified, train_tail=warmup_modified.iloc[0:0])
 
-    # 4. 取末尾 n_steps 行
-    if len(feat) < n_steps:
+    # 4. 取末尾 (seq_window + n_steps) 行（序列模型需要历史窗口，树模型截取后 n_steps）
+    need_rows = seq_window + n_steps
+    if len(feat) < need_rows:
         raise ValueError(
-            f"暖机数据不足：构造后仅 {len(feat)} 行，少于 n_steps={n_steps}。"
+            f"暖机数据不足：构造后仅 {len(feat)} 行，少于 {need_rows}。"
             f"请检查 cleaned.csv"
         )
-    feat = feat.iloc[-n_steps:].reset_index(drop=True)
+    feat = feat.iloc[-need_rows:].reset_index(drop=True)
 
     # 5. 校验 NaN（理论上不会，但防御性检查）
     if feat.isna().any().any():
