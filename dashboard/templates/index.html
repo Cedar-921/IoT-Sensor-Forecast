@@ -188,14 +188,15 @@
             status.textContent = '调用中...';
 
             try {
-                // ARIMA 不需要 history；其他模型传 290 个历史点（demo 用 sin 波）
+                // 非 ARIMA 模型：从 /history 端点拉真实历史
                 const body = { model, n_steps: nSteps };
                 if (model !== 'arima') {
-                    const hist = [];
-                    for (let i = 0; i < 290; i++) {
-                        hist.push(60 + 30 * Math.sin(i / 12) + 20 * Math.sin(i / 144));
+                    const histResp = await fetchWithDetail(API_BASE + '/history?n=290');
+                    const histData = await histResp.json();
+                    if (!histData.appliances || histData.appliances.length === 0) {
+                        throw new Error('/history 返回了空数据');
                     }
-                    body.history = hist;
+                    body.history = histData.appliances;
                 }
 
                 const resp = await fetchWithDetail(API_BASE + '/predict', {

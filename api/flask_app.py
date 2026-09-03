@@ -329,6 +329,29 @@ def metrics():
     return jsonify(df.to_dict(orient="records")), 200
 
 
+@app.route("/history", methods=["GET"])
+def history():
+    """返回最近 N 个时间步的 Appliances 历史值（供 Dashboard 时序图用）。
+
+    查询参数
+    --------
+    n : int, 默认 290
+        返回的历史点数量（与训练窗口一致）
+
+    返回
+    ----
+    JSON {"appliances": [float, ...], "n": int}
+    """
+    n = int(request.args.get("n", 290))
+    if n <= 0 or n > 10000:
+        return jsonify({"error": "n 必须在 1~10000 之间"}), 400
+    try:
+        df = _load_warmup_n_rows(n)
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    return jsonify({"appliances": df["Appliances"].tolist(), "n": len(df)}), 200
+
+
 @app.route("/predict", methods=["POST"])
 def predict():
     """预测端点（Day 16+）。
