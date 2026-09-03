@@ -113,8 +113,13 @@ def train_arima(n_train: int | None = None) -> dict[str, float]:
     y_val = val["Appliances"]
 
     logger.info("ARIMA: train=%d, val=%d, test=%d", len(y_train), len(y_val), len(test))
-    arima_order = (2, 1, 2)
-    logger.info("ARIMA: order=%s, 预计拟合时间 1-5 分钟...", arima_order)
+    # smoke test 专用低阶（<10s），正式训练用全阶 (2,1,2)
+    if n_train is not None:
+        arima_order = (1, 1, 1)
+        logger.info("ARIMA smoke test 模式：order=(1,1,1) + %d 样本", n_train)
+    else:
+        arima_order = (2, 1, 2)
+        logger.info("ARIMA: order=%s, 预计拟合时间 1-5 分钟...", arima_order)
 
     model = ARIMAModel(order=arima_order)
     try:

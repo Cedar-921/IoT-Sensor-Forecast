@@ -44,4 +44,11 @@ def evaluate(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]:
     denom = np.where(np.abs(y_true) < 1e-9, 1e-9, np.abs(y_true))
     mape = float(np.mean(np.abs((y_true - y_pred) / denom)) * 100)
 
-    return {"MAE": mae, "RMSE": rmse, "MAPE": mape}
+    # sMAPE：对称 MAPE，输出范围 [0, 200]%，对零值友好
+    numerator = 2.0 * np.abs(y_true - y_pred)
+    denominator = np.abs(y_true) + np.abs(y_pred)
+    # denominator 极小时（双方都接近 0）sMAPE → 0；直接除后按 mask 置 0，避免 warning
+    ratio = np.divide(numerator, denominator, out=np.zeros_like(numerator, dtype=float), where=denominator != 0)
+    smape = float(np.mean(ratio) * 100)
+
+    return {"MAE": mae, "RMSE": rmse, "MAPE": mape, "sMAPE": smape}

@@ -37,6 +37,19 @@ OUTDOOR_COLS: tuple[str, ...] = (
 )
 OTHER_COLS: tuple[str, ...] = ("lights", "rv1")
 
+# 原始特征列全集（与建模列并列，作为底座保留）
+RAW_FEATURE_COLS: frozenset[str] = frozenset([
+    *INDOOR_TEMP_COLS, *INDOOR_HUM_COLS, *OUTDOOR_COLS, *OTHER_COLS,
+])
+
+# 时间编码列
+TIME_COLS: frozenset[str] = frozenset({
+    "hour_sin", "hour_cos",
+    "dow_sin", "dow_cos",
+    "month_sin", "month_cos",
+    "is_weekend",
+})
+
 # ─────────────── 周期编码辅助 ───────────────
 _PERIODS: dict[str, int] = {
     "hour": 24,
@@ -62,7 +75,9 @@ def _add_time_features(df: pd.DataFrame) -> pd.DataFrame:
 
     out["hour_sin"], out["hour_cos"] = _cyclic_encode(hour, _PERIODS["hour"])
     out["dow_sin"], out["dow_cos"] = _cyclic_encode(dow, _PERIODS["dow"])
-    out["month_sin"], out["month_cos"] = _cyclic_encode(month, _PERIODS["month"])
+    # month 为 1-indexed（January=1, December=12），用 (month-1)/12 使 January 位于 0°
+    # 与 hour/dow 的 0-indexed 编码逻辑一致，避免 month=12 和 month=0 落在同一位
+    out["month_sin"], out["month_cos"] = _cyclic_encode(month - 1, _PERIODS["month"])
 
     out["is_weekend"] = (dow >= 5).astype(int)
     return out
@@ -103,23 +118,24 @@ def _build_feature_frame(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _resolve_feature_cols(df_with_features: pd.DataFrame) -> list[str]:
-    """从含特征的 DataFrame 中选出建模列（排除原始列 + 目标列）。"""
+    """从含特征的 DataFrame 中选出建模列。
+
+    保留策略：原始特征列（室内/室外/其他）+ 时间编码列 + 衍生特征列。
+    新增衍生特征（lag/roll/ewm 结尾）自动纳入，无需改这里。
+    """
     exclude = {TARGET_COL, TARGET_LOG_COL}
-    # 保留新衍生列 + 室内/室外/其他原始列
     keep = []
     for c in df_with_features.columns:
         if c in exclude:
             continue
-        if (
-            c in INDOOR_TEMP_COLS
-            or c in INDOOR_HUM_COLS
-            or c in OUTDOOR_COLS
-            or c in OTHER_COLS
-        ):
+        # 原始特征列（室内温度/湿度、室外、其他）
+        if c in RAW_FEATURE_COLS:
             keep.append(c)
-        elif c.startswith(f"{TARGET_COL}_lag") or c.startswith(f"{TARGET_COL}_roll"):
+        # 时间编码列
+        elif c in TIME_COLS:
             keep.append(c)
-        elif c in {"hour_sin", "hour_cos", "dow_sin", "dow_cos", "month_sin", "month_cos", "is_weekend"}:
+        # 衍生特征：以目标列名开头（Appliances_lag* / Appliances_roll* / Appliances_ewm*）
+        elif c.startswith((f"{TARGET_COL}_lag", f"{TARGET_COL}_roll", f"{TARGET_COL}_ewm")):
             keep.append(c)
     return keep
 
